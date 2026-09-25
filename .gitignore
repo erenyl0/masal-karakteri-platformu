@@ -1,6 +1,7 @@
 2.jpg
 *.env
 .env
+CLAUDE.md
 
 __pycache__/
 *.pyc
