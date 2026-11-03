@@ -3,6 +3,7 @@
 import io
 import os
 import shutil
+import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -15,13 +16,14 @@ from pydantic import BaseModel
 from eslestirme import otomatik_esle
 from grup_akisi import sahne_uret, yuzleri_hazirla
 from sablonlar import TEMALAR
-from uretim import MOCK_MODE
+from uretim import MOCK_MODE, UretimHatasi
 from yuz_tespit import foto_ac
 
 PROJE = os.path.dirname(os.path.abspath(__file__))
 IS_KLASORU = os.path.join(PROJE, "isler")
 ARAYUZ_KLASORU = os.path.join(PROJE, "arayuz", "dist")
 SAKLAMA_SURESI_SN = 60 * 60
+TEMIZLIK_ARALIGI_SN = 60
 MAKS_DOSYA_BOYUTU = 15 * 1024 * 1024
 
 app = FastAPI(title="Masal Karakteri Platformu")
@@ -29,6 +31,8 @@ app = FastAPI(title="Masal Karakteri Platformu")
 # Modeller aynı anda iki işte çalışmasın diye tek işçi var, istekler sırayla işleniyor
 isci = ThreadPoolExecutor(max_workers=1)
 isler: dict[str, dict] = {}
+# temizlik ayrı bir iş parçacığında çalıştığı için işin durumunu değiştiren yerler sırayla girsin
+kilit = threading.Lock()
 
 # önceki çalıştırmadan kalan fotoğraflar kimseye ait değil artık, siliyoruz
 shutil.rmtree(IS_KLASORU, ignore_errors=True)
@@ -61,10 +65,21 @@ def _calisiyor_mu(is_: dict) -> bool:
 
 
 def _eski_isleri_sil():
-    for is_id, is_ in list(isler.items()):
-        if time.time() - is_["zaman"] > SAKLAMA_SURESI_SN and not _calisiyor_mu(is_):
-            shutil.rmtree(is_["klasor"], ignore_errors=True)
-            del isler[is_id]
+    with kilit:
+        for is_id, is_ in list(isler.items()):
+            if time.time() - is_["zaman"] > SAKLAMA_SURESI_SN and not _calisiyor_mu(is_):
+                shutil.rmtree(is_["klasor"], ignore_errors=True)
+                del isler[is_id]
+
+
+def _temizlik_dongusu():
+    # kimse yeni fotoğraf yüklemese de süresi dolan fotoğraflar silinsin
+    while True:
+        time.sleep(TEMIZLIK_ARALIGI_SN)
+        _eski_isleri_sil()
+
+
+threading.Thread(target=_temizlik_dongusu, daemon=True).start()
 
 
 @app.get("/api/bilgi")
@@ -114,7 +129,7 @@ def yukle(foto: UploadFile = File(...), onay: bool = Form(False)):
         raise HTTPException(422, "Fotoğrafta yüz bulunamadı. Yüzlerin net göründüğü başka bir fotoğraf dene.")
 
     isler[is_id] = {"klasor": klasor, "yuzler": yuzler, "durum": "yuklendi", "zaman": time.time(),
-                    "tamamlanan": 0, "toplam": 0, "mesaj": "", "sahne": None}
+                    "tamamlanan": 0, "toplam": 0, "mesaj": "", "sahne": None, "eksikler": []}
     return {
         "is_id": is_id,
         "yuzler": [{"id": yuz["id"], "gorsel": f"/api/is/{is_id}/yuz/{yuz['id']}", "uyarilar": yuz["uyarilar"],
@@ -147,37 +162,39 @@ def _uretim_isi(is_id: str, tema: str, eslesme: dict[str, str]):
 
     is_["durum"] = "uretiliyor"
     try:
-        sahne = sahne_uret(is_["yuzler"], tema, eslesme, os.path.join(is_["klasor"], "sahne"), ilerleme)
+        sahne, eksikler = sahne_uret(is_["yuzler"], tema, eslesme, os.path.join(is_["klasor"], "sahne"), ilerleme)
+    except UretimHatasi as hata:
+        is_.update(durum="hata", mesaj=str(hata))
+        return
     except Exception as hata:
         is_.update(durum="hata", mesaj=f"Beklenmeyen bir hata oldu: {hata}")
         return
 
-    if sahne:
-        is_.update(durum="bitti", sahne=sahne, mesaj="Sahne hazır.")
-    else:
-        is_.update(durum="hata", mesaj="Hiçbir karakter üretilemedi.")
+    is_.update(durum="bitti", sahne=sahne, eksikler=eksikler, mesaj="Sahne hazır.")
 
 
 @app.post("/api/is/{is_id}/uret")
 def uret(is_id: str, istek: UretimIstegi):
-    is_ = _is_getir(is_id)
     tema = _tema_getir(istek.tema)
-    if _calisiyor_mu(is_):
-        raise HTTPException(409, "Bu fotoğraf için üretim zaten sürüyor.")
     if not MOCK_MODE and not os.environ.get("OPENAI_API_KEY"):
         raise HTTPException(503, "Sunucuda OPENAI_API_KEY tanımlı değil.")
 
-    karakter_idleri = {k["id"] for k in tema["karakterler"]}
-    yuz_idleri = {y["id"] for y in is_["yuzler"]}
-    if not istek.eslesme:
-        raise HTTPException(400, "En az bir kişiye karakter vermelisin.")
-    if not set(istek.eslesme) <= yuz_idleri or not set(istek.eslesme.values()) <= karakter_idleri:
-        raise HTTPException(400, "Eşlemede bu fotoğrafa ya da temaya ait olmayan bir değer var.")
-    if len(set(istek.eslesme.values())) != len(istek.eslesme):
-        raise HTTPException(400, "Aynı karakter iki kişiye verilemez.")
+    with kilit:
+        is_ = _is_getir(is_id)
+        if _calisiyor_mu(is_):
+            raise HTTPException(409, "Bu fotoğraf için üretim zaten sürüyor.")
 
-    is_.update(durum="sirada", tamamlanan=0, toplam=len(istek.eslesme), mesaj="Sırada bekliyor.", sahne=None,
-               uretim_no=is_.get("uretim_no", 0) + 1)
+        karakter_idleri = {k["id"] for k in tema["karakterler"]}
+        yuz_idleri = {y["id"] for y in is_["yuzler"]}
+        if not istek.eslesme:
+            raise HTTPException(400, "En az bir kişiye karakter vermelisin.")
+        if not set(istek.eslesme) <= yuz_idleri or not set(istek.eslesme.values()) <= karakter_idleri:
+            raise HTTPException(400, "Eşlemede bu fotoğrafa ya da temaya ait olmayan bir değer var.")
+        if len(set(istek.eslesme.values())) != len(istek.eslesme):
+            raise HTTPException(400, "Aynı karakter iki kişiye verilemez.")
+
+        is_.update(durum="sirada", tamamlanan=0, toplam=len(istek.eslesme), mesaj="Sırada bekliyor.", sahne=None,
+                   eksikler=[], uretim_no=is_.get("uretim_no", 0) + 1)
     isci.submit(_uretim_isi, is_id, istek.tema, istek.eslesme)
     return {"durum": is_["durum"]}
 
@@ -190,6 +207,7 @@ def durum(is_id: str):
         "tamamlanan": is_["tamamlanan"],
         "toplam": is_["toplam"],
         "mesaj": is_["mesaj"],
+        "eksikler": is_["eksikler"],
         "sahne": f"/api/is/{is_id}/sahne?v={is_['uretim_no']}" if is_["sahne"] else None,
     }
 
@@ -204,11 +222,12 @@ def sahne(is_id: str):
 
 @app.delete("/api/is/{is_id}")
 def isi_sil(is_id: str):
-    is_ = _is_getir(is_id)
-    if _calisiyor_mu(is_):
-        raise HTTPException(409, "Üretim sürerken silinemez, bitmesini bekle.")
-    shutil.rmtree(is_["klasor"], ignore_errors=True)
-    del isler[is_id]
+    with kilit:
+        is_ = _is_getir(is_id)
+        if _calisiyor_mu(is_):
+            raise HTTPException(409, "Üretim sürerken silinemez, bitmesini bekle.")
+        shutil.rmtree(is_["klasor"], ignore_errors=True)
+        del isler[is_id]
     return {"silindi": True}
 
 

@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import simpledialog
 
 from sablonlar import ORTAK_KISITLAR, STIL_SABITLERI
-from uretim import MOCK_MODE, UretimHatasi, benzerlik_olc, dosya_sec, gorsel_uret
+from uretim import MOCK_MODE, KaliciHata, UretimHatasi, benzerlik_olc, dosya_sec, gorsel_uret
 
 
 def main():
@@ -22,6 +22,10 @@ def main():
         print(f"{stil}:")
         try:
             dosya, _ = gorsel_uret(referans_yol, prompt, f"fizibilite_{stil}.png", stil)
+        except KaliciHata as hata:
+            # kredi bitti ya da anahtar yoksa diğer stil de aynı hatayı alacak
+            print(f"  üretim durdu: {hata}\n")
+            break
         except UretimHatasi as hata:
             print(f"  üretilemedi: {hata}\n")
             continue

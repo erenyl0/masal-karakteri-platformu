@@ -1,0 +1,10 @@
+openai==3.28.0
+deepface==0.0.100
+tf-keras==2.21.0
+retina-face==0.0.18
+opencv-python==5.0.0.93
+pillow==12.3.0
+numpy==2.5.2
+fastapi==0.162.0
+uvicorn==0.54.0
+python-multipart==0.0.33

@@ -40,12 +40,14 @@ export default function App() {
   }
 
   async function bastanBasla(mesaj = "") {
+    let silmeHatasi = "";
     if (yukleme) {
-      await isiSil(yukleme.is_id).catch(() => {});
+      await isiSil(yukleme.is_id).catch((hata) => (silmeHatasi = hata.message));
     }
     setYukleme(null);
-    setHata("");
-    setBildirim(mesaj);
+    // "Verilerimi sil" denince silme başarısızsa "silindi" demeyelim
+    setHata(mesaj && silmeHatasi ? `Silinemedi: ${silmeHatasi}` : "");
+    setBildirim(silmeHatasi ? "" : mesaj);
     setAdim(0);
   }
 
@@ -104,7 +106,6 @@ export default function App() {
           onBaskaTema={() => setAdim(2)}
           onYeniFoto={() => bastanBasla()}
           onSil={() => bastanBasla("Fotoğrafın ve üretilen görseller sunucudan silindi.")}
-          hataGoster={setHata}
         />
       )}
     </div>

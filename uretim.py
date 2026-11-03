@@ -66,9 +66,11 @@ def _gercek_cagri(referans_yol: str, prompt: str, cikti_yolu: str) -> str:
 
     client = openai.OpenAI(api_key=anahtar)
     try:
+        # input_fidelity="high": model referanstaki yüz hatlarına daha sadık kalıyor
         cevap = client.images.edit(model=MODEL_ADI, image=("referans.jpg", tampon.getvalue(), "image/jpeg"),
-                                   prompt=prompt, size="1024x1024")
-    except (openai.AuthenticationError, openai.PermissionDeniedError, openai.BadRequestError) as hata:
+                                   prompt=prompt, size="1024x1024", input_fidelity="high")
+    except (openai.AuthenticationError, openai.PermissionDeniedError, openai.BadRequestError,
+            openai.NotFoundError) as hata:
         raise KaliciHata(f"istek reddedildi: {hata.message}") from hata
     except openai.RateLimitError as hata:
         if hata.type == "insufficient_quota":

@@ -14,7 +14,7 @@ from eslestirme import otomatik_esle
 from grup_akisi import STIL, yuzleri_hazirla
 from kalite_kontrol import BENZERLIK_ESIGI, en_iyisini_uret
 from sablonlar import TEMALAR, komut_satirindan_tema, prompt_olustur
-from uretim import MOCK_MODE
+from uretim import MOCK_MODE, UretimHatasi
 
 FOTO_KLASORU = "test_fotograflari"
 CIKTI_KLASORU = "degerlendirme_ciktilari"
@@ -44,8 +44,11 @@ def fotografi_degerlendir(foto_yolu: str, tema_anahtari: str) -> dict:
         if karakter_id is None:
             continue
         baslangic = time.time()
-        en_iyi = en_iyisini_uret(yuz["dosya"], prompt_olustur(STIL, tema_anahtari, karakter_id),
-                                 os.path.join(klasor, f"{yuz['id']}_{karakter_id}"), yuz["id"])
+        try:
+            en_iyi = en_iyisini_uret(yuz["dosya"], prompt_olustur(STIL, tema_anahtari, karakter_id),
+                                     os.path.join(klasor, f"{yuz['id']}_{karakter_id}"), yuz["id"])
+        except UretimHatasi:
+            en_iyi = None
         sureler.append(time.time() - baslangic)
         if en_iyi:
             basarili += 1
@@ -72,12 +75,13 @@ def ozet_yaz(sonuclar: list[dict], tema_anahtari: str) -> str:
     dogru_sayim = sum(1 for s in sayili if s["bulunan_yuz"] == s["beklenen_kisi"])
     denenen = sum(s["denenen"] for s in sonuclar)
     uretilen = sum(s["uretilen"] for s in sonuclar)
-    sureler = [s["kisi_basi_sn"] for s in sonuclar if s["kisi_basi_sn"] is not None]
+    # fotoğrafların ortalamasını değil kişilerin ortalamasını istiyoruz, kalabalık fotoğraf daha çok ağırlık taşımalı
+    toplam_sure = sum(s["kisi_basi_sn"] * s["denenen"] for s in sonuclar if s["kisi_basi_sn"] is not None)
     skorlar = [skor for s in sonuclar for skor in s["benzerlikler"]]
     hazirlik = [s["hazirlik_sn"] for s in sonuclar]
     mock_notu = " (mock mod, gerçek değil)" if MOCK_MODE else ""
 
-    kisi_basi = f"{statistics.mean(sureler):.1f} sn{mock_notu}" if sureler else "ölçülmedi"
+    kisi_basi = f"{toplam_sure / denenen:.1f} sn{mock_notu}" if denenen else "ölçülmedi"
     basari = f"%{uretilen / denenen * 100:.0f} ({uretilen}/{denenen}){mock_notu}" if denenen else "ölçülmedi"
     benzerlik = (f"ortalama %{statistics.mean(skorlar):.1f}, eşiği (%{BENZERLIK_ESIGI:.0f}) geçen "
                  f"%{sum(s >= BENZERLIK_ESIGI for s in skorlar) / len(skorlar) * 100:.0f}") if skorlar else \

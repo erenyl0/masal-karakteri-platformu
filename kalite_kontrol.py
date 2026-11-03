@@ -17,16 +17,18 @@ def _skor(aday: dict) -> float:
     return float("-inf") if aday["benzerlik"] is None else aday["benzerlik"]
 
 
-def en_iyisini_uret(referans_yol: str, prompt: str, cikti_taban_yolu: str, etiket: str) -> dict | None:
-    en_iyi = None
+def en_iyisini_uret(referans_yol: str, prompt: str, cikti_taban_yolu: str, etiket: str) -> dict:
+    en_iyi, son_hata = None, None
     for n in range(1, KALITE_MAKS_DENEME + 1):
         try:
             dosya, _ = gorsel_uret(referans_yol, prompt, f"{cikti_taban_yolu}_n{n}.png", f"{etiket}_n{n}")
         except KaliciHata as hata:
             print(f"  Üretim durdu: {hata}")
+            son_hata = hata
             break
         except UretimHatasi as hata:
             print(f"  {n}. üretim olmadı: {hata}")
+            son_hata = hata
             continue
 
         benzerlik = None if MOCK_MODE else benzerlik_olc(referans_yol, dosya)
@@ -38,6 +40,9 @@ def en_iyisini_uret(referans_yol: str, prompt: str, cikti_taban_yolu: str, etike
         if benzerlik is not None and benzerlik >= BENZERLIK_ESIGI:
             break
 
+    if en_iyi is None:
+        # hiçbiri üretilemediyse sebebi (ör. kredi bitti) çağırana iletiyoruz, web arayüzü kullanıcıya gösteriyor
+        raise son_hata
     return en_iyi
 
 
@@ -57,15 +62,15 @@ def main():
         for stil in STIL_SABITLERI:
             etiket = f"{karakter['id']}_{stil}"
             print(f"{etiket}:")
-            en_iyi = en_iyisini_uret(referans_yol, prompt_olustur(stil, tema_anahtari, karakter["id"]),
-                                     os.path.join(CIKTI_KLASORU, etiket), etiket)
-
             satir = {"tema": tema_anahtari, "karakter": karakter["id"], "stil": stil,
                      "mod": "mock" if MOCK_MODE else "gercek", "dosya": "", "benzerlik_yuzde": "",
-                     "secilen_n": "", "esik_gecti_mi": "hayır"}
+                     "secilen_n": "", "esik_gecti_mi": "hayır", "durum": "", "hata": ""}
 
-            if en_iyi is None:
-                satir["durum"] = "üretilemedi"
+            try:
+                en_iyi = en_iyisini_uret(referans_yol, prompt_olustur(stil, tema_anahtari, karakter["id"]),
+                                         os.path.join(CIKTI_KLASORU, etiket), etiket)
+            except UretimHatasi as hata:
+                satir.update(durum="üretilemedi", hata=str(hata))
             else:
                 esik_gecti = _skor(en_iyi) >= BENZERLIK_ESIGI
                 satir.update(dosya=en_iyi["dosya"], secilen_n=en_iyi["kacinci"],

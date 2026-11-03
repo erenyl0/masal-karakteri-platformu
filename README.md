@@ -34,7 +34,7 @@ Bu yüzden her şeyi "mock mod" ile test ettim: kod gerçek API'ye gitmek yerine
 Python 3.10 veya üstü gerekiyor.
 
 ```
-pip install openai deepface tf-keras retina-face opencv-python pillow fastapi uvicorn python-multipart
+pip install -r requirements.txt
 ```
 
 Varsayılan olarak mock modda çalışıyor, API anahtarı gerekmiyor. Gerçek üretim için `uretim.py` içinde `MOCK_MODE = False` yapıp anahtarı terminalde tanımlamak lazım:

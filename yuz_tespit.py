@@ -27,9 +27,12 @@ def _egim_ve_profil(landmarks: dict) -> tuple[float, float]:
     dx, dy = sag[0] - sol[0], sag[1] - sol[1]
     egim = math.degrees(math.atan2(dy, dx))
 
-    # burun gözlerin ortasından ne kadar kaymışsa yüz o kadar yana dönük
+    # burun gözlerin ortasından ne kadar kaymışsa yüz o kadar yana dönük; kayma göz çizgisi
+    # doğrultusunda ölçülüyor, yoksa başını sadece yana eğmiş biri de yandan çekilmiş sayılıyor
     goz_arasi = math.hypot(dx, dy) or 1
-    burun_kaymasi = abs(landmarks["nose"][0] - (sol[0] + sag[0]) / 2) / goz_arasi
+    burun_x = landmarks["nose"][0] - (sol[0] + sag[0]) / 2
+    burun_y = landmarks["nose"][1] - (sol[1] + sag[1]) / 2
+    burun_kaymasi = abs(burun_x * dx + burun_y * dy) / goz_arasi ** 2
     return egim, burun_kaymasi
 
 
@@ -44,6 +47,10 @@ def yuzleri_bul(foto_yolu: str) -> list[dict]:
     yuzler = []
     for bilgi in bulunanlar.values():
         x1, y1, x2, y2 = (max(int(v), 0) for v in bilgi["facial_area"])
+        # fotoğrafın kenarındaki yüzlerde kutu resmin dışına taşabiliyor
+        x2, y2 = min(x2, bgr.shape[1]), min(y2, bgr.shape[0])
+        if x2 - x1 < 2 or y2 - y1 < 2:
+            continue
 
         # Laplacian varyansı çözünürlükle değişiyor; yüzleri karşılaştırabilmek için aynı genişliğe getiriyoruz
         olcek_boy = max(1, round(NETLIK_OLCUM_GENISLIGI * (y2 - y1) / (x2 - x1)))
@@ -99,10 +106,12 @@ def yas_cinsiyet_tahmin_et(yuzler: list[dict]) -> None:
     for yuz in yuzler:
         bgr = cv2.cvtColor(np.array(PIL.Image.open(yuz["dosya"]).convert("RGB")), cv2.COLOR_RGB2BGR)
         try:
-            sonuc = DeepFace.analyze(bgr, actions=["age", "gender"], detector_backend="retinaface",
-                                     enforce_detection=False, silent=True)[0]
+            sonuclar = DeepFace.analyze(bgr, actions=["age", "gender"], detector_backend="retinaface",
+                                        enforce_detection=False, silent=True)
         except Exception as hata:
             print(f"  {yuz['id']} için yaş/cinsiyet tahmini yapılamadı: {hata}")
             continue
+        # kalabalık fotoğrafta kırpımın kenarına yandakinin yüzü de girebiliyor, en büyük yüz kırpımın sahibi
+        sonuc = max(sonuclar, key=lambda s: s["region"]["w"] * s["region"]["h"])
         yuz["yas"] = int(sonuc["age"])
         yuz["kadin_olasiligi"] = round(float(sonuc["gender"]["Woman"]) / 100, 2)

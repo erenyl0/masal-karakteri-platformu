@@ -7,7 +7,7 @@ from eslestirme import otomatik_esle
 from kalite_kontrol import en_iyisini_uret
 from kompozisyon import sahne_olustur
 from sablonlar import TEMALAR, komut_satirindan_tema, prompt_olustur
-from uretim import MOCK_MODE, dosya_sec
+from uretim import MOCK_MODE, UretimHatasi, dosya_sec
 from yuz_tespit import yas_cinsiyet_tahmin_et, yuzleri_bul, yuzleri_kirp
 
 STIL = "el_cizimi_masal"
@@ -22,12 +22,12 @@ def yuzleri_hazirla(foto_yolu: str, klasor: str) -> list[dict]:
 
 
 def sahne_uret(yuzler: list[dict], tema_anahtari: str, eslesme: dict[str, str], klasor: str,
-               ilerleme=None) -> str | None:
+               ilerleme=None) -> tuple[str, list[str]]:
     karakterler = {k["id"]: k for k in TEMALAR[tema_anahtari]["karakterler"]}
     secilenler = [yuz for yuz in yuzler if yuz["id"] in eslesme]
     os.makedirs(klasor, exist_ok=True)
 
-    parcalar = []
+    parcalar, eksikler, hatalar = [], [], []
     for sira, yuz in enumerate(secilenler):
         karakter = karakterler[eslesme[yuz["id"]]]
         if ilerleme:
@@ -35,18 +35,22 @@ def sahne_uret(yuzler: list[dict], tema_anahtari: str, eslesme: dict[str, str], 
 
         etiket = f"{yuz['id']}_{karakter['id']}"
         print(f"\n{etiket}:")
-        en_iyi = en_iyisini_uret(yuz["dosya"], prompt_olustur(STIL, tema_anahtari, karakter["id"]),
-                                 os.path.join(klasor, etiket), etiket)
-        if en_iyi:
-            parcalar.append((en_iyi["dosya"], karakter["ad"]))
-        else:
+        try:
+            en_iyi = en_iyisini_uret(yuz["dosya"], prompt_olustur(STIL, tema_anahtari, karakter["id"]),
+                                     os.path.join(klasor, etiket), etiket)
+        except UretimHatasi as hata:
             print(f"  {etiket} üretilemedi, sahneye eklenmeyecek")
+            eksikler.append(karakter["ad"])
+            hatalar.append(str(hata))
+            continue
+        parcalar.append((en_iyi["dosya"], karakter["ad"]))
 
     if not parcalar:
-        return None
+        # aynı sebep (ör. kredi bitti) her kişide tekrarlanmasın diye mesajları tekilleştiriyoruz
+        raise UretimHatasi("Hiçbir karakter üretilemedi: " + " | ".join(dict.fromkeys(hatalar)))
     if ilerleme:
         ilerleme(len(secilenler), len(secilenler), "sahne birleştiriliyor")
-    return sahne_olustur(parcalar, os.path.join(klasor, "sahne.png"))
+    return sahne_olustur(parcalar, os.path.join(klasor, "sahne.png")), eksikler
 
 
 def main():
@@ -69,8 +73,14 @@ def main():
         print(f"  {yuz['id']}: netlik {yuz['netlik']}, eğim {yuz['egim']}°{tahmin}{ek}"
               f" -> {eslesme.get(yuz['id'], 'karakter kalmadı')}")
 
-    sahne = sahne_uret(yuzler, tema_anahtari, eslesme, "sahne_ciktilari")
-    print(f"\nSahne hazır: {sahne}" if sahne else "\nHiçbir karakter üretilemedi, sahne oluşmadı.")
+    try:
+        sahne, eksikler = sahne_uret(yuzler, tema_anahtari, eslesme, "sahne_ciktilari")
+    except UretimHatasi as hata:
+        print(f"\nSahne oluşmadı. {hata}")
+        return
+    print(f"\nSahne hazır: {sahne}")
+    if eksikler:
+        print(f"Üretilemediği için sahnede olmayan karakterler: {', '.join(eksikler)}")
 
 
 if __name__ == "__main__":

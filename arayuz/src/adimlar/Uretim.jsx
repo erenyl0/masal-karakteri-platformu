@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { durumGetir } from "../api.js";
 
-export default function Uretim({ isId, onBaskaTema, onYeniFoto, onSil, hataGoster }) {
-  const [durum, setDurum] = useState({ durum: "sirada", tamamlanan: 0, toplam: 0, mesaj: "Sırada bekliyor." });
+export default function Uretim({ isId, onBaskaTema, onYeniFoto, onSil }) {
+  const [durum, setDurum] = useState({ durum: "sirada", tamamlanan: 0, toplam: 0, mesaj: "Sırada bekliyor.", eksikler: [] });
 
   useEffect(() => {
     let iptal = false;
@@ -14,7 +14,8 @@ export default function Uretim({ isId, onBaskaTema, onYeniFoto, onSil, hataGoste
         if (yeni.durum === "bitti" || yeni.durum === "hata") clearInterval(zamanlayici);
       } catch (hata) {
         clearInterval(zamanlayici);
-        if (!iptal) hataGoster(hata.message);
+        // sunucu kapandıysa ya da iş silindiyse ekranda takılı kalmasın, butonlar görünsün
+        if (!iptal) setDurum((eski) => ({ ...eski, durum: "hata", mesaj: hata.message }));
       }
     }, 1000);
 
@@ -22,7 +23,7 @@ export default function Uretim({ isId, onBaskaTema, onYeniFoto, onSil, hataGoste
       iptal = true;
       clearInterval(zamanlayici);
     };
-  }, [isId, hataGoster]);
+  }, [isId]);
 
   const bitti = durum.durum === "bitti";
   const basarisiz = durum.durum === "hata";
@@ -49,6 +50,9 @@ export default function Uretim({ isId, onBaskaTema, onYeniFoto, onSil, hataGoste
       {bitti && (
         <>
           <img className="sahne" src={durum.sahne} alt="Oluşturulan masal sahnesi" />
+          {durum.eksikler.length > 0 && (
+            <p className="ipucu">Şu karakterler üretilemediği için sahnede yok: {durum.eksikler.join(", ")}.</p>
+          )}
           <a className="buton" href={durum.sahne} download="masal_sahnesi.png">
             İndir
           </a>
