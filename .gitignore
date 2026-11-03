@@ -14,3 +14,6 @@ yuz_kirpimlari/
 sahne_ciktilari/
 ornek_*.png
 fizibilite_*.png
+isler/
+arayuz/node_modules/
+arayuz/dist/

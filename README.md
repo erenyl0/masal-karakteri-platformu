@@ -4,7 +4,7 @@ Staj projem. Bir fotoğraftaki kişiyi, ya da bir aile fotoğrafındaki herkesi,
 
 Fikir şu: fotoğrafı veriyorsun, bir masal seçiyorsun. Sistem fotoğraftaki yüzleri buluyor, her birini o masaldaki bir karaktere eşliyor, yapay zekâyla karakter görsellerini üretiyor, yüzün ne kadar korunduğunu ölçüyor ve hepsini tek bir sahnede birleştiriyor.
 
-8 haftalık bir yol haritasına göre ilerliyorum ([Masal_Karakteri_Platformu_Gorev_ve_Yol_Haritasi.pdf](Masal_Karakteri_Platformu_Gorev_ve_Yol_Haritasi.pdf)), şu an 6. haftanın sonundayım.
+8 haftalık bir yol haritasına göre ilerliyorum ([Masal_Karakteri_Platformu_Gorev_ve_Yol_Haritasi.pdf](Masal_Karakteri_Platformu_Gorev_ve_Yol_Haritasi.pdf)), şu an 7. haftanın sonundayım.
 
 ## Şu anki durum
 
@@ -22,16 +22,18 @@ Bu yüzden her şeyi "mock mod" ile test ettim: kod gerçek API'ye gitmek yerine
 | `uretim_dongusu.py` | Bir temadaki her karakteri her stille üretip sonuçları CSV'ye yazıyor |
 | `kalite_kontrol.py` | Her karakter için birkaç görsel üretip yüze en çok benzeyeni seçiyor |
 | `yuz_tespit.py` | Fotoğraftaki yüzleri bulup netlik/açı kontrolü yapıyor, düzeltip kırpıyor |
-| `eslestirme.py` | Yüzleri karakterlere eşliyor, eşleme elle de değiştirilebiliyor |
+| `eslestirme.py` | Yüzleri tahmini yaş ve cinsiyete göre karakterlere eşliyor, eşleme elle de değiştirilebiliyor |
 | `kompozisyon.py` | Üretilen karakterleri tek bir sahnede birleştiriyor |
 | `grup_akisi.py` | Hepsini bir araya getiriyor: grup fotoğrafından tek sahne |
+| `api.py` | Web arayüzünün konuştuğu sunucu (FastAPI): yükleme, eşleme, üretim, indirme, silme |
+| `arayuz/` | React ile yazılmış web arayüzü: fotoğraf → yüz onayı → masal ve eşleme → sahne |
 
 ## Kurulum
 
 Python 3.10 veya üstü gerekiyor.
 
 ```
-pip install openai deepface tf-keras retina-face opencv-python pillow
+pip install openai deepface tf-keras retina-face opencv-python pillow fastapi uvicorn python-multipart
 ```
 
 Varsayılan olarak mock modda çalışıyor, API anahtarı gerekmiyor. Gerçek üretim için `uretim.py` içinde `MOCK_MODE = False` yapıp anahtarı terminalde tanımlamak lazım:
@@ -40,9 +42,30 @@ Varsayılan olarak mock modda çalışıyor, API anahtarı gerekmiyor. Gerçek �
 $env:OPENAI_API_KEY="sk-..."
 ```
 
-İlk çalıştırmada yüz tespiti ve yüz tanıma modelleri indiriliyor (toplam 700 MB civarı), biraz sürebilir.
+İlk çalıştırmada yüz tespiti, yüz tanıma ve yaş/cinsiyet modelleri indiriliyor (toplam 1,8 GB civarı), biraz sürebilir.
 
-## Çalıştırma
+## Web arayüzü
+
+Arayüz için ayrıca [Node.js](https://nodejs.org) (LTS) gerekiyor. İlk seferde arayüzü derlemek lazım:
+
+```
+cd arayuz
+npm install
+npm run build
+cd ..
+```
+
+Sonra sunucuyu başlatıp tarayıcıda http://127.0.0.1:8000 adresini açmak yetiyor:
+
+```
+python api.py
+```
+
+Arayüz üzerinde çalışırken `python api.py` açıkken `arayuz` klasöründe `npm run dev` çalıştırılırsa, değişiklikler http://localhost:5173 adresinde anında görünüyor.
+
+Fotoğraf yüklenmeden önce, fotoğraftaki kişilerin kendin ya da ailen olduğunu onaylaman gerekiyor. Yüklenen fotoğraflar 1 saat sonra, sunucu yeniden başladığında ya da "Verilerimi sil" butonuna basınca siliniyor.
+
+## Komut satırından çalıştırma
 
 ```
 python fizibilite.py
@@ -55,9 +78,10 @@ Hepsi açılışta fotoğraf seçmek için bir pencere açıyor. Tema adı veril
 
 ## Eksikler
 
-- Yüzleri karakterlere şimdilik soldan sağa sırayla eşliyorum. Yol haritasında yaş ve cinsiyet tahminine göre yapılması gerekiyor; şu haliyle bir yetişkin erkek Gretel olabiliyor.
+- Yüzleri karakterlere tahmini yaş ve cinsiyete göre eşliyorum (DeepFace). Tahminler yanılabiliyor, o yüzden eşleme elle de değiştirilebiliyor. Temadaki slotlara uymayan bir aile (ör. üç yetişkin erkek ve Hansel ile Gretel) olursa biri yine de uymayan bir role düşüyor.
 - Gerçek görsellerle deneme yapamadığım için benzerlik eşiğini (%60) ve temaların görsel tutarlılığını henüz kontrol edemedim.
-- 7. hafta (web arayüzü) ve 8. hafta (test ve sunum) daha yapılmadı.
+- Web arayüzü tek kişilik bir demo için yapıldı: yol haritasında önerilen Celery + Redis kuyruğu yerine basit bir sıra kullanıyorum, işler sunucunun belleğinde tutuluyor (sunucu kapanınca siliniyor) ve kullanıcı girişi yok.
+- 8. hafta (test ve sunum) daha yapılmadı.
 
 ## Gizlilik
 

@@ -1,0 +1,301 @@
+:root {
+  --zemin: #faf3e6;
+  --kart: #fffaf2;
+  --metin: #3c2a1e;
+  --soluk: #7a6655;
+  --vurgu: #b5532f;
+  --vurgu-koyu: #8f3f22;
+  --cizgi: #e6d6bf;
+  --uyari: #a86a00;
+  --hata: #b3261e;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--metin);
+  background: var(--zemin);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.sayfa {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+header h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.2rem;
+  margin: 0 0 4px;
+  color: var(--vurgu-koyu);
+}
+
+header p {
+  margin: 0 0 8px;
+  color: var(--soluk);
+}
+
+.mock {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fff1d6;
+  color: var(--uyari);
+  font-size: 0.9rem;
+}
+
+.adimlar {
+  display: flex;
+  gap: 8px;
+  padding: 0;
+  margin: 20px 0;
+  list-style: none;
+  counter-reset: adim;
+}
+
+.adimlar li {
+  flex: 1;
+  padding: 8px;
+  border-bottom: 3px solid var(--cizgi);
+  color: var(--soluk);
+  font-size: 0.9rem;
+  counter-increment: adim;
+}
+
+.adimlar li::before {
+  content: counter(adim) ". ";
+}
+
+.adimlar li.gecildi {
+  border-color: #d9a88f;
+}
+
+.adimlar li.aktif {
+  border-color: var(--vurgu);
+  color: var(--metin);
+  font-weight: 600;
+}
+
+.kart {
+  background: var(--kart);
+  border: 1px solid var(--cizgi);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.kart h2 {
+  margin-top: 0;
+}
+
+button,
+.buton {
+  display: inline-block;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--vurgu);
+  color: white;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button:hover,
+.buton:hover {
+  background: var(--vurgu-koyu);
+}
+
+button:disabled {
+  background: #d8c7b4;
+  cursor: not-allowed;
+}
+
+button.ikincil {
+  background: transparent;
+  color: var(--vurgu-koyu);
+  border: 1px solid var(--cizgi);
+}
+
+button.ikincil:hover {
+  background: #f3e6d3;
+}
+
+button.tehlike {
+  background: transparent;
+  color: var(--hata);
+  border: 1px solid #e8c3bf;
+}
+
+button.tehlike:hover {
+  background: #fbe9e7;
+}
+
+.butonlar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dosya-sec {
+  display: inline-block;
+  padding: 12px 18px;
+  border: 2px dashed var(--cizgi);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--vurgu-koyu);
+}
+
+.dosya-sec input {
+  display: none;
+}
+
+.onizleme {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 16px 0;
+  border-radius: 8px;
+}
+
+.onay {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 16px 0;
+  font-size: 0.95rem;
+}
+
+.onay input {
+  margin-top: 4px;
+}
+
+.ipucu {
+  color: var(--soluk);
+  font-size: 0.9rem;
+}
+
+.hata {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fbe9e7;
+  color: var(--hata);
+}
+
+.bildirim {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #e8f3e6;
+  color: #2e6b2a;
+}
+
+.yuzler,
+.eslesmeler {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.yuz,
+.eslesme {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 2px solid var(--cizgi);
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+.yuz {
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.yuz.secili {
+  border-color: var(--vurgu);
+  opacity: 1;
+}
+
+.yuz input {
+  align-self: flex-start;
+}
+
+.yuz img,
+.eslesme img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.uyari {
+  color: var(--uyari);
+}
+
+.eslesme select {
+  padding: 6px;
+  border: 1px solid var(--cizgi);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.temalar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+button.tema {
+  background: transparent;
+  color: var(--metin);
+  border: 1px solid var(--cizgi);
+}
+
+button.tema:hover {
+  background: #f3e6d3;
+}
+
+button.tema.secili {
+  background: var(--vurgu);
+  color: white;
+  border-color: var(--vurgu);
+}
+
+.ilerleme {
+  height: 14px;
+  border-radius: 7px;
+  background: var(--cizgi);
+  overflow: hidden;
+}
+
+.ilerleme div {
+  height: 100%;
+  background: var(--vurgu);
+  transition: width 0.4s;
+}
+
+.sahne {
+  display: block;
+  width: 100%;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--cizgi);
+}
+
+@media (max-width: 520px) {
+  .adimlar li {
+    font-size: 0.75rem;
+    padding: 6px 2px;
+  }
+
+  .kart {
+    padding: 16px;
+  }
+}
