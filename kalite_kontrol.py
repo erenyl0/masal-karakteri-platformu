@@ -6,9 +6,9 @@ import tkinter as tk
 from tkinter import filedialog
 
 from uretim import MOCK_MODE, UretimHatasi, benzerlik_olc, gorsel_uret
-from sablonlar import STIL_SABITLERI, TEMALAR, prompt_olustur
+from sablonlar import STIL_SABITLERI, TEMALAR, komut_satirindan_tema, prompt_olustur
 
-TEMA_ANAHTARI = "kirmizi_baslikli_kiz"
+TEMA_ANAHTARI = komut_satirindan_tema()
 CIKTI_KLASORU = "kalite_ciktilari"
 CSV_YOLU = "kalite_sonuclari.csv"
 BENZERLIK_ESIGI = 60.0

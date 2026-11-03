@@ -1,5 +1,7 @@
 """Stil/tema/karakter prompt verileri."""
 
+import sys
+
 STIL_SABITLERI = {
     "el_cizimi_masal": (
         "Warm-toned, hand-drawn fairy tale book illustration style, soft colored "
@@ -46,7 +48,130 @@ TEMALAR = {
             },
         ],
     },
+    "pamuk_prenses": {
+        "goruntu_adi": "Pamuk Prenses",
+        "karakterler": [
+            {
+                "id": "prenses",
+                "rol": "a kind forest princess",
+                "aciklama": "wearing a simple linen dress with embroidered flowers, "
+                             "holding a shiny red apple, standing in a sunlit forest glade",
+            },
+            {
+                "id": "kralice",
+                "rol": "the Wicked Queen",
+                "aciklama": "wearing a dark purple velvet robe and a silver crown, "
+                             "looking into an ornate hand mirror",
+            },
+            {
+                "id": "cuce",
+                "rol": "a cheerful forest miner",
+                "aciklama": "with a long braided beard, a leather apron and a small "
+                             "lantern, standing at the entrance of a gem mine",
+            },
+            {
+                "id": "prens",
+                "rol": "a wandering prince",
+                "aciklama": "wearing a travel cloak over light armor, riding a brown "
+                             "horse along a forest path",
+            },
+        ],
+    },
+    "hansel_gretel": {
+        "goruntu_adi": "Hansel ile Gretel",
+        "karakterler": [
+            {
+                "id": "hansel",
+                "rol": "Hansel",
+                "aciklama": "wearing short lederhosen and a wool cap, dropping "
+                             "breadcrumbs along a dark forest path",
+            },
+            {
+                "id": "gretel",
+                "rol": "Gretel",
+                "aciklama": "wearing a braided-hair look and a simple pinafore dress, "
+                             "holding a small lantern in a dark forest",
+            },
+            {
+                "id": "cadi",
+                "rol": "the Gingerbread House Witch",
+                "aciklama": "wearing a patched shawl and a pointed hat, standing in "
+                             "front of a house made of gingerbread and candy",
+            },
+            {
+                "id": "oduncu",
+                "rol": "the Woodcutter Father",
+                "aciklama": "wearing a plaid wool shirt, carrying a bundle of "
+                             "firewood on his back at the forest edge",
+            },
+        ],
+    },
+    "kulkedisi": {
+        "goruntu_adi": "Külkedisi",
+        "karakterler": [
+            {
+                "id": "kulkedisi",
+                "rol": "Cinderella",
+                "aciklama": "wearing a patched grey work dress dusted with ash, "
+                             "sitting by a stone fireplace with a broom",
+            },
+            {
+                "id": "uvey_anne",
+                "rol": "the Stepmother",
+                "aciklama": "wearing a stiff high-collared dark green gown, holding "
+                             "a folded fan, standing in a grand hallway",
+            },
+            {
+                "id": "peri_anne",
+                "rol": "the Fairy Godmother",
+                "aciklama": "wearing a flowing silver-blue cloak, holding a slender "
+                             "wand that sparkles with light, beside a pumpkin",
+            },
+            {
+                "id": "prens",
+                "rol": "the Prince",
+                "aciklama": "wearing a deep red ceremonial coat with gold buttons, "
+                             "holding a single glass slipper in a ballroom",
+            },
+        ],
+    },
+    "uc_kucuk_domuz": {
+        "goruntu_adi": "Üç Küçük Domuz",
+        "karakterler": [
+            {
+                "id": "saman_domuz",
+                "rol": "the first little pig",
+                "aciklama": "a friendly anthropomorphic pig character in a straw hat, "
+                             "standing proudly beside a house made of straw",
+            },
+            {
+                "id": "odun_domuz",
+                "rol": "the second little pig",
+                "aciklama": "a friendly anthropomorphic pig character in overalls, "
+                             "holding a bundle of sticks beside a wooden house",
+            },
+            {
+                "id": "tugla_domuz",
+                "rol": "the third little pig",
+                "aciklama": "a friendly anthropomorphic pig character with a builder's "
+                             "trowel, beside a sturdy brick house",
+            },
+            {
+                "id": "kurt",
+                "rol": "the Big Bad Wolf",
+                "aciklama": "anthropomorphic wolf character with grey fur and puffed "
+                             "cheeks, about to blow a house down",
+            },
+        ],
+    },
 }
+
+
+def komut_satirindan_tema(varsayilan: str = "kirmizi_baslikli_kiz") -> str:
+    tema = sys.argv[1] if len(sys.argv) > 1 else varsayilan
+    if tema not in TEMALAR:
+        raise SystemExit(f"Bilinmeyen tema: {tema}. Seçenekler: {', '.join(TEMALAR)}")
+    return tema
 
 
 def prompt_olustur(stil_anahtari: str, tema_anahtari: str, karakter_id: str) -> str:
