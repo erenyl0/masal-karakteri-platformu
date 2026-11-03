@@ -9,6 +9,8 @@ import PIL.Image
 from PIL import ImageOps
 
 BULANIKLIK_ESIGI = 100.0
+# parlaklık ten rengine de bağlı; eşik yüksek olursa normal ışıktaki koyu tenli yüzler yanlışlıkla karanlık sayılır
+KARANLIK_ESIGI = 45
 NETLIK_OLCUM_GENISLIGI = 256
 MIN_YUZ_PIKSEL = 80
 PROFIL_ESIGI = 0.35
@@ -46,10 +48,14 @@ def yuzleri_bul(foto_yolu: str) -> list[dict]:
         # Laplacian varyansı çözünürlükle değişiyor; yüzleri karşılaştırabilmek için aynı genişliğe getiriyoruz
         olcek_boy = max(1, round(NETLIK_OLCUM_GENISLIGI * (y2 - y1) / (x2 - x1)))
         olcekli = cv2.resize(bgr[y1:y2, x1:x2], (NETLIK_OLCUM_GENISLIGI, olcek_boy), interpolation=cv2.INTER_AREA)
-        netlik = float(cv2.Laplacian(cv2.cvtColor(olcekli, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var())
+        gri = cv2.cvtColor(olcekli, cv2.COLOR_BGR2GRAY)
+        netlik = float(cv2.Laplacian(gri, cv2.CV_64F).var())
         egim, burun_kaymasi = _egim_ve_profil(bilgi["landmarks"])
 
         uyarilar = []
+        # karanlık fotoğraftaki gürültü netliği yüksek gösterebiliyor, o yüzden ışık ayrıca kontrol ediliyor
+        if gri.mean() < KARANLIK_ESIGI:
+            uyarilar.append("karanlık")
         if netlik < BULANIKLIK_ESIGI:
             uyarilar.append("bulanık")
         if min(x2 - x1, y2 - y1) < MIN_YUZ_PIKSEL:

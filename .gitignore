@@ -15,5 +15,9 @@ sahne_ciktilari/
 ornek_*.png
 fizibilite_*.png
 isler/
+test_fotograflari/
+degerlendirme_ciktilari/
+degerlendirme_sonuclari.csv
+degerlendirme_ozeti.md
 arayuz/node_modules/
 arayuz/dist/
