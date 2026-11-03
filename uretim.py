@@ -1,10 +1,10 @@
 """Görsel üretimi + retry + benzerlik ölçümü. MOCK_MODE=True iken sahte üretim yapar."""
 
+import base64
 import os
 import random
 import time
 import tkinter as tk
-from io import BytesIO
 from tkinter import filedialog
 
 import cv2
@@ -13,7 +13,7 @@ from PIL import ImageDraw
 
 from sablonlar import TEMALAR, prompt_olustur
 
-MODEL_ADI = "gemini-3.1-flash-image"
+MODEL_ADI = "gpt-image-1"
 MOCK_MODE = True
 MOCK_HATA_OLASILIGI = 0.5
 MAKS_DENEME = 3
@@ -21,7 +21,7 @@ BASLANGIC_BEKLEME_SN = 2
 
 
 class UretimHatasi(Exception):
-    """Gemini üretim çağrısı, tüm denemelere rağmen başarısız olduğunda fırlatılır."""
+    """Üretim çağrısı, tüm denemelere rağmen başarısız olduğunda fırlatılır."""
 
 
 def dosya_sec(baslik: str) -> str:
@@ -46,25 +46,26 @@ def _mock_cagri(referans_yol: str, cikti_yolu: str, etiket: str) -> str:
 
 
 def _gercek_cagri(referans_yol: str, prompt: str, cikti_yolu: str) -> str:
-    from google import genai
-    from google.genai import types
+    from openai import OpenAI
 
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    referans_goruntu = PIL.Image.open(referans_yol)
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    cevap = client.models.generate_content(
-        model=MODEL_ADI,
-        contents=[referans_goruntu, prompt],
-        config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"]),
-    )
+    with open(referans_yol, "rb") as referans:
+        cevap = client.images.edit(
+            model=MODEL_ADI,
+            image=referans,
+            prompt=prompt,
+            size="1024x1024",
+        )
 
-    for part in cevap.candidates[0].content.parts:
-        if part.inline_data is not None:
-            img = PIL.Image.open(BytesIO(part.inline_data.data))
-            img.save(cikti_yolu)
-            return cikti_yolu
+    kodlanmis_gorsel = cevap.data[0].b64_json
+    if not kodlanmis_gorsel:
+        raise UretimHatasi("Yanıtta görsel bulunamadı")
 
-    raise UretimHatasi("Yanıtta görsel bulunamadı")
+    with open(cikti_yolu, "wb") as dosya:
+        dosya.write(base64.b64decode(kodlanmis_gorsel))
+
+    return cikti_yolu
 
 
 def gorsel_uret(referans_yol: str, prompt: str, cikti_yolu: str, etiket: str) -> tuple[str, int]:
