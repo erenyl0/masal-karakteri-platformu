@@ -1,6 +1,7 @@
 """Tek görsel üretimi (hata olursa tekrar dener) ve üretilen görselin referans yüze benzerliği."""
 
 import base64
+import io
 import os
 import random
 import time
@@ -9,10 +10,10 @@ from tkinter import filedialog
 
 import cv2
 import numpy as np
-import PIL.Image
 from PIL import ImageDraw
 
 from sablonlar import TEMALAR, prompt_olustur
+from yuz_tespit import foto_ac
 
 MODEL_ADI = "gpt-image-1"
 MOCK_MODE = True  # API anahtarı ya da kredi yokken True kalsın
@@ -38,14 +39,14 @@ def dosya_sec(baslik: str) -> str:
 
 def goruntu_oku(yol: str) -> np.ndarray:
     # cv2.imread Windows'ta Türkçe karakterli yolları açamıyor, o yüzden PIL ile okuyoruz
-    return cv2.cvtColor(np.array(PIL.Image.open(yol).convert("RGB")), cv2.COLOR_RGB2BGR)
+    return cv2.cvtColor(np.array(foto_ac(yol)), cv2.COLOR_RGB2BGR)
 
 
 def _mock_cagri(referans_yol: str, cikti_yolu: str, etiket: str) -> str:
     if random.random() < MOCK_HATA_OLASILIGI:
         raise UretimHatasi("mock: geçici hata")
 
-    img = PIL.Image.open(referans_yol).convert("RGB")
+    img = foto_ac(referans_yol)
     cizim = ImageDraw.Draw(img)
     cizim.rectangle([0, 0, 220, 40], fill=(0, 0, 0))
     cizim.text((10, 10), f"MOCK: {etiket}", fill=(255, 255, 255))
@@ -60,10 +61,13 @@ def _gercek_cagri(referans_yol: str, prompt: str, cikti_yolu: str) -> str:
     if not anahtar:
         raise KaliciHata('OPENAI_API_KEY tanımlı değil. Terminalde $env:OPENAI_API_KEY="sk-..." ile tanımla.')
 
+    tampon = io.BytesIO()
+    foto_ac(referans_yol).save(tampon, "JPEG", quality=95)
+
     client = openai.OpenAI(api_key=anahtar)
     try:
-        with open(referans_yol, "rb") as referans:
-            cevap = client.images.edit(model=MODEL_ADI, image=referans, prompt=prompt, size="1024x1024")
+        cevap = client.images.edit(model=MODEL_ADI, image=("referans.jpg", tampon.getvalue(), "image/jpeg"),
+                                   prompt=prompt, size="1024x1024")
     except (openai.AuthenticationError, openai.PermissionDeniedError, openai.BadRequestError) as hata:
         raise KaliciHata(f"istek reddedildi: {hata.message}") from hata
     except openai.RateLimitError as hata:

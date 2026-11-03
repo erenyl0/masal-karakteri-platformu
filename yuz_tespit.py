@@ -6,12 +6,18 @@ import os
 import cv2
 import numpy as np
 import PIL.Image
+from PIL import ImageOps
 
 BULANIKLIK_ESIGI = 100.0
 NETLIK_OLCUM_GENISLIGI = 256
 MIN_YUZ_PIKSEL = 80
 PROFIL_ESIGI = 0.35
 KIRPMA_PAYI = 0.25
+
+
+def foto_ac(yol: str) -> PIL.Image.Image:
+    # telefonlar fotoğrafı yan kaydedip doğru yönü EXIF'e yazıyor, PIL bunu kendiliğinden uygulamıyor
+    return ImageOps.exif_transpose(PIL.Image.open(yol)).convert("RGB")
 
 
 def _egim_ve_profil(landmarks: dict) -> tuple[float, float]:
@@ -28,7 +34,7 @@ def _egim_ve_profil(landmarks: dict) -> tuple[float, float]:
 def yuzleri_bul(foto_yolu: str) -> list[dict]:
     from retinaface import RetinaFace
 
-    bgr = cv2.cvtColor(np.array(PIL.Image.open(foto_yolu).convert("RGB")), cv2.COLOR_RGB2BGR)
+    bgr = cv2.cvtColor(np.array(foto_ac(foto_yolu)), cv2.COLOR_RGB2BGR)
     bulunanlar = RetinaFace.detect_faces(bgr)
     if not isinstance(bulunanlar, dict):
         return []
@@ -66,7 +72,7 @@ def yuzleri_bul(foto_yolu: str) -> list[dict]:
 
 def yuzleri_kirp(foto_yolu: str, yuzler: list[dict], klasor: str) -> None:
     os.makedirs(klasor, exist_ok=True)
-    foto = PIL.Image.open(foto_yolu).convert("RGB")
+    foto = foto_ac(foto_yolu)
 
     for yuz in yuzler:
         x1, y1, x2, y2 = yuz["kutu"]
@@ -79,3 +85,18 @@ def yuzleri_kirp(foto_yolu: str, yuzler: list[dict], klasor: str) -> None:
 
         yuz["dosya"] = os.path.join(klasor, f"{yuz['id']}.png")
         kirpim.save(yuz["dosya"])
+
+
+def yas_cinsiyet_tahmin_et(yuzler: list[dict]) -> None:
+    from deepface import DeepFace
+
+    for yuz in yuzler:
+        bgr = cv2.cvtColor(np.array(PIL.Image.open(yuz["dosya"]).convert("RGB")), cv2.COLOR_RGB2BGR)
+        try:
+            sonuc = DeepFace.analyze(bgr, actions=["age", "gender"], detector_backend="retinaface",
+                                     enforce_detection=False, silent=True)[0]
+        except Exception as hata:
+            print(f"  {yuz['id']} için yaş/cinsiyet tahmini yapılamadı: {hata}")
+            continue
+        yuz["yas"] = int(sonuc["age"])
+        yuz["kadin_olasiligi"] = round(float(sonuc["gender"]["Woman"]) / 100, 2)

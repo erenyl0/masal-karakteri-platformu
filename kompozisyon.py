@@ -6,6 +6,17 @@ from PIL import ImageDraw, ImageFont, ImageOps
 ARKA_PLAN = (250, 240, 220)
 YAZI_RENGI = (60, 40, 20)
 ALT_BOSLUK = 70
+# Pillow'un kendi yazı tipinde ğ, ş, ı gibi harfler yok; sistemde Türkçe destekli olanı arıyoruz
+YAZI_TIPLERI = ["segoeui.ttf", "arial.ttf", "DejaVuSans.ttf"]
+
+
+def _yazi_tipi(boyut: int) -> ImageFont.ImageFont:
+    for ad in YAZI_TIPLERI:
+        try:
+            return ImageFont.truetype(ad, boyut)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=boyut)
 
 
 def sahne_olustur(parcalar: list[tuple[str, str]], cikti_yolu: str,
@@ -13,7 +24,7 @@ def sahne_olustur(parcalar: list[tuple[str, str]], cikti_yolu: str,
     genislik, yukseklik = boyut
     sahne = PIL.Image.new("RGB", boyut, ARKA_PLAN)
     cizim = ImageDraw.Draw(sahne)
-    yazi_tipi = ImageFont.load_default(size=28)
+    yazi_tipi = _yazi_tipi(30)
 
     hucre = genislik // len(parcalar)
     for sira, (gorsel_yolu, etiket) in enumerate(parcalar):

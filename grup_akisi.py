@@ -8,54 +8,45 @@ from kalite_kontrol import en_iyisini_uret
 from kompozisyon import sahne_olustur
 from sablonlar import TEMALAR, komut_satirindan_tema, prompt_olustur
 from uretim import MOCK_MODE, dosya_sec
-from yuz_tespit import yuzleri_bul, yuzleri_kirp
+from yuz_tespit import yas_cinsiyet_tahmin_et, yuzleri_bul, yuzleri_kirp
 
 STIL = "el_cizimi_masal"
-KIRPIM_KLASORU = "yuz_kirpimlari"
-CIKTI_KLASORU = "sahne_ciktilari"
 
 
-def sahne_uret(foto_yolu: str, tema_anahtari: str, eslesme: dict[str, str] | None = None) -> str | None:
-    karakterler = {k["id"]: k for k in TEMALAR[tema_anahtari]["karakterler"]}
-
+def yuzleri_hazirla(foto_yolu: str, klasor: str) -> list[dict]:
     yuzler = yuzleri_bul(foto_yolu)
-    if not yuzler:
-        print("Fotoğrafta yüz bulunamadı.")
-        return None
+    if yuzler:
+        yuzleri_kirp(foto_yolu, yuzler, klasor)
+        yas_cinsiyet_tahmin_et(yuzler)
+    return yuzler
 
-    print(f"{len(yuzler)} yüz bulundu:")
-    for yuz in yuzler:
-        ek = f" ({', '.join(yuz['uyarilar'])}, daha iyi bir fotoğraf denenebilir)" if yuz["uyarilar"] else ""
-        print(f"  {yuz['id']}: netlik {yuz['netlik']}, eğim {yuz['egim']}°{ek}")
 
-    yuzleri_kirp(foto_yolu, yuzler, KIRPIM_KLASORU)
-    if eslesme is None:
-        eslesme = otomatik_esle(yuzler, list(karakterler.values()))
+def sahne_uret(yuzler: list[dict], tema_anahtari: str, eslesme: dict[str, str], klasor: str,
+               ilerleme=None) -> str | None:
+    karakterler = {k["id"]: k for k in TEMALAR[tema_anahtari]["karakterler"]}
+    secilenler = [yuz for yuz in yuzler if yuz["id"] in eslesme]
+    os.makedirs(klasor, exist_ok=True)
 
-    disarida = [yuz["id"] for yuz in yuzler if yuz["id"] not in eslesme]
-    if disarida:
-        print(f"Karakter kalmadığı için sahneye girmeyenler: {', '.join(disarida)}")
-
-    os.makedirs(CIKTI_KLASORU, exist_ok=True)
     parcalar = []
-    for yuz in yuzler:
-        karakter_id = eslesme.get(yuz["id"])
-        if karakter_id is None:
-            continue
+    for sira, yuz in enumerate(secilenler):
+        karakter = karakterler[eslesme[yuz["id"]]]
+        if ilerleme:
+            ilerleme(sira, len(secilenler), f"{karakter['ad']} çiziliyor")
 
-        etiket = f"{yuz['id']}_{karakter_id}"
+        etiket = f"{yuz['id']}_{karakter['id']}"
         print(f"\n{etiket}:")
-        en_iyi = en_iyisini_uret(yuz["dosya"], prompt_olustur(STIL, tema_anahtari, karakter_id),
-                                 os.path.join(CIKTI_KLASORU, etiket), etiket)
+        en_iyi = en_iyisini_uret(yuz["dosya"], prompt_olustur(STIL, tema_anahtari, karakter["id"]),
+                                 os.path.join(klasor, etiket), etiket)
         if en_iyi:
-            parcalar.append((en_iyi["dosya"], karakterler[karakter_id]["rol"]))
+            parcalar.append((en_iyi["dosya"], karakter["ad"]))
         else:
             print(f"  {etiket} üretilemedi, sahneye eklenmeyecek")
 
     if not parcalar:
-        print("Hiçbir karakter üretilemedi, sahne oluşmadı.")
         return None
-    return sahne_olustur(parcalar, os.path.join(CIKTI_KLASORU, "sahne.png"))
+    if ilerleme:
+        ilerleme(len(secilenler), len(secilenler), "sahne birleştiriliyor")
+    return sahne_olustur(parcalar, os.path.join(klasor, "sahne.png"))
 
 
 def main():
@@ -65,9 +56,21 @@ def main():
     foto_yolu = dosya_sec("Grup fotoğrafını seç")
 
     print(f"\nTema: {TEMALAR[tema_anahtari]['goruntu_adi']} ({'mock' if MOCK_MODE else 'gerçek'} mod)\n")
-    sahne = sahne_uret(foto_yolu, tema_anahtari)
-    if sahne:
-        print(f"\nSahne hazır: {sahne}")
+    yuzler = yuzleri_hazirla(foto_yolu, "yuz_kirpimlari")
+    if not yuzler:
+        print("Fotoğrafta yüz bulunamadı.")
+        return
+
+    eslesme = otomatik_esle(yuzler, TEMALAR[tema_anahtari]["karakterler"])
+    print(f"{len(yuzler)} yüz bulundu:")
+    for yuz in yuzler:
+        tahmin = f", tahmini yaş {yuz['yas']}, kadın %{yuz['kadin_olasiligi'] * 100:.0f}" if "yas" in yuz else ""
+        ek = f" ({', '.join(yuz['uyarilar'])}, daha iyi bir fotoğraf denenebilir)" if yuz["uyarilar"] else ""
+        print(f"  {yuz['id']}: netlik {yuz['netlik']}, eğim {yuz['egim']}°{tahmin}{ek}"
+              f" -> {eslesme.get(yuz['id'], 'karakter kalmadı')}")
+
+    sahne = sahne_uret(yuzler, tema_anahtari, eslesme, "sahne_ciktilari")
+    print(f"\nSahne hazır: {sahne}" if sahne else "\nHiçbir karakter üretilemedi, sahne oluşmadı.")
 
 
 if __name__ == "__main__":
