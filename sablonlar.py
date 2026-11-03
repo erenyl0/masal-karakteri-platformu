@@ -15,8 +15,9 @@ STIL_SABITLERI = {
 
 ORTAK_KISITLAR = (
     "Preserve their facial identity, face shape, skin tone, and hair "
-    "color/texture as closely as possible. No deformed face, consistent "
-    "single light direction, resolution at least 1024x1024."
+    "color/texture as closely as possible. No deformed face, natural hands "
+    "with five fingers, consistent single light direction, resolution at "
+    "least 1024x1024."
 )
 
 TEMALAR = {
@@ -89,7 +90,7 @@ TEMALAR = {
             {
                 "id": "gretel",
                 "rol": "Gretel",
-                "aciklama": "wearing a braided-hair look and a simple pinafore dress, "
+                "aciklama": "with braided hair and a simple pinafore dress, "
                              "holding a small lantern in a dark forest",
             },
             {

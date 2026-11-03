@@ -1,10 +1,11 @@
-"""Ayrı ayrı üretilen karakter görsellerini tek bir masal sahnesinde birleştirir."""
+"""Ayrı ayrı üretilen karakter görsellerini tek bir sahnede yan yana dizer."""
 
 import PIL.Image
-from PIL import ImageDraw
+from PIL import ImageDraw, ImageFont, ImageOps
 
 ARKA_PLAN = (250, 240, 220)
-ETIKET_YUKSEKLIGI = 60
+YAZI_RENGI = (60, 40, 20)
+ALT_BOSLUK = 70
 
 
 def sahne_olustur(parcalar: list[tuple[str, str]], cikti_yolu: str,
@@ -12,17 +13,16 @@ def sahne_olustur(parcalar: list[tuple[str, str]], cikti_yolu: str,
     genislik, yukseklik = boyut
     sahne = PIL.Image.new("RGB", boyut, ARKA_PLAN)
     cizim = ImageDraw.Draw(sahne)
+    yazi_tipi = ImageFont.load_default(size=28)
 
-    hucre_genislik = genislik // len(parcalar)
+    hucre = genislik // len(parcalar)
     for sira, (gorsel_yolu, etiket) in enumerate(parcalar):
-        gorsel = PIL.Image.open(gorsel_yolu).convert("RGB")
-        gorsel.thumbnail((hucre_genislik - 40, yukseklik - ETIKET_YUKSEKLIGI - 40))
-
-        x = sira * hucre_genislik + (hucre_genislik - gorsel.width) // 2
-        y = (yukseklik - ETIKET_YUKSEKLIGI - gorsel.height) // 2
-        sahne.paste(gorsel, (x, y))
-        cizim.text((sira * hucre_genislik + 20, yukseklik - ETIKET_YUKSEKLIGI + 15),
-                   etiket, fill=(60, 40, 20))
+        gorsel = ImageOps.contain(PIL.Image.open(gorsel_yolu).convert("RGB"),
+                                  (hucre - 40, yukseklik - ALT_BOSLUK - 40))
+        sol = sira * hucre
+        sahne.paste(gorsel, (sol + (hucre - gorsel.width) // 2, (yukseklik - ALT_BOSLUK - gorsel.height) // 2))
+        cizim.text((sol + hucre // 2, yukseklik - ALT_BOSLUK // 2), etiket,
+                   fill=YAZI_RENGI, font=yazi_tipi, anchor="mm")
 
     sahne.save(cikti_yolu)
     return cikti_yolu

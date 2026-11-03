@@ -1,20 +1,16 @@
 2.jpg
-*.env
 .env
+*.env
 CLAUDE.md
 
 __pycache__/
 *.pyc
 
 uretim_ciktilari/
-kalite_ciktilari/
-hafta2_ciktilari/
-hafta4_ciktilari/
 uretim_sonuclari.csv
+kalite_ciktilari/
 kalite_sonuclari.csv
-hafta2_sonuclari.csv
-hafta4_sonuclari.csv
-ornek_*.png
-uretim_*.png
 yuz_kirpimlari/
 sahne_ciktilari/
+ornek_*.png
+fizibilite_*.png

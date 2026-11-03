@@ -1,83 +1,63 @@
-"""Bir temadaki tüm karakter x stil kombinasyonlarını üretip CSV'ye loglar."""
+"""Bir temadaki her karakteri her stille bir kez üretip sonuçları CSV'ye yazar."""
 
 import csv
 import os
 import time
 import tkinter as tk
-from tkinter import filedialog
 
-from uretim import MOCK_MODE, UretimHatasi, benzerlik_olc, gorsel_uret
 from sablonlar import STIL_SABITLERI, TEMALAR, komut_satirindan_tema, prompt_olustur
+from uretim import MOCK_MODE, UretimHatasi, benzerlik_olc, dosya_sec, gorsel_uret
 
-TEMA_ANAHTARI = komut_satirindan_tema()
 CIKTI_KLASORU = "uretim_ciktilari"
 CSV_YOLU = "uretim_sonuclari.csv"
 
 
-def dosya_sec(baslik: str) -> str:
-    yol = filedialog.askopenfilename(
-        title=baslik, filetypes=[("JPEG/PNG Dosyaları", "*.jpg;*.jpeg;*.png")]
-    )
-    if not yol:
-        raise SystemExit(f"SİSTEM DURDU: '{baslik}' için dosya seçilmedi.")
-    return yol
-
-
 def main():
+    tema_anahtari = komut_satirindan_tema()
     root = tk.Tk()
     root.withdraw()
-
-    referans_yol = dosya_sec("Referans (orijinal) yüz fotoğrafını seç")
+    referans_yol = dosya_sec("Referans yüz fotoğrafını seç")
     os.makedirs(CIKTI_KLASORU, exist_ok=True)
 
-    tema = TEMALAR[TEMA_ANAHTARI]
+    tema = TEMALAR[tema_anahtari]
+    print(f"\nTema: {tema['goruntu_adi']} ({'mock' if MOCK_MODE else 'gerçek'} mod)\n")
+
     satirlar = []
-
-    print(f"\n--- TEMA: {tema['goruntu_adi']} | MOD: {'MOCK' if MOCK_MODE else 'GERÇEK'} ---\n")
-
     for karakter in tema["karakterler"]:
-        for stil_anahtari in STIL_SABITLERI:
-            karakter_id = karakter["id"]
-            etiket = f"{karakter_id}_{stil_anahtari}"
-            prompt = prompt_olustur(stil_anahtari, TEMA_ANAHTARI, karakter_id)
-            cikti_yolu = os.path.join(CIKTI_KLASORU, f"{etiket}.png")
+        for stil in STIL_SABITLERI:
+            etiket = f"{karakter['id']}_{stil}"
+            prompt = prompt_olustur(stil, tema_anahtari, karakter["id"])
+            print(f"{etiket} üretiliyor...")
 
-            print(f"[{etiket}] üretiliyor...")
             baslangic = time.time()
-
+            dosya, deneme, hata_mesaji = "", "", ""
             try:
-                sonuc_yolu, deneme_sayisi = gorsel_uret(referans_yol, prompt, cikti_yolu, etiket)
-                hata_mesaji = ""
+                dosya, deneme = gorsel_uret(referans_yol, prompt, os.path.join(CIKTI_KLASORU, f"{etiket}.png"), etiket)
             except UretimHatasi as hata:
-                sonuc_yolu, deneme_sayisi = None, None
                 hata_mesaji = str(hata)
-
             sure = round(time.time() - baslangic, 2)
 
-            benzerlik = None
-            if sonuc_yolu and not MOCK_MODE:
-                benzerlik = benzerlik_olc(referans_yol, sonuc_yolu)
+            benzerlik = benzerlik_olc(referans_yol, dosya) if dosya and not MOCK_MODE else None
 
             satirlar.append({
-                "tema": TEMA_ANAHTARI,
-                "karakter": karakter_id,
-                "stil": stil_anahtari,
+                "tema": tema_anahtari,
+                "karakter": karakter["id"],
+                "stil": stil,
                 "mod": "mock" if MOCK_MODE else "gercek",
-                "deneme_sayisi": deneme_sayisi if deneme_sayisi is not None else "",
+                "deneme_sayisi": deneme,
                 "sure_sn": sure,
-                "benzerlik_yuzde": benzerlik if benzerlik is not None else "",
-                "dosya": sonuc_yolu or "",
+                "benzerlik_yuzde": "" if benzerlik is None else benzerlik,
+                "dosya": dosya,
                 "hata": hata_mesaji,
                 "prompt": prompt,
             })
-            print(f"  Süre: {sure} sn | Dosya: {sonuc_yolu}\n")
+            print(f"  {sure} sn" + (f", hata: {hata_mesaji}" if hata_mesaji else "") + "\n")
 
     with open(CSV_YOLU, "w", newline="", encoding="utf-8") as f:
         yazici = csv.DictWriter(f, fieldnames=satirlar[0].keys())
         yazici.writeheader()
         yazici.writerows(satirlar)
-
-    print(f"Tüm sonuçlar kaydedildi: {CSV_YOLU}")
+    print(f"Sonuçlar {CSV_YOLU} dosyasına yazıldı.")
 
 
 if __name__ == "__main__":
